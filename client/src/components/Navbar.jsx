@@ -14,6 +14,7 @@ import {
   MapPin,
   Settings,
   ClipboardCheck,
+  ClipboardList,
   Users
 } from 'lucide-react';
 
@@ -183,6 +184,13 @@ export default function Navbar({ activeTab, setActiveTab, onOpenNotifications, u
               >
                 <Layers size={16} />
                 {t('nav_dashboard')}
+              </button>
+              <button
+                className={`subnav-link ${activeTab === 'issue_mgmt' ? 'active' : ''}`}
+                onClick={() => setActiveTab('issue_mgmt')}
+              >
+                <ClipboardList size={16} />
+                Issue Management
               </button>
               <button
                 className={`subnav-link ${activeTab === 'analytics' ? 'active' : ''}`}

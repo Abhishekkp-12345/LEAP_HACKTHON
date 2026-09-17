@@ -255,6 +255,86 @@ const issueController = {
     }
   },
 
+  assignIssue(req, res) {
+    try {
+      const { id } = req.params;
+      const { staffId, notes } = req.body;
+      const adminId = req.user.id;
+
+      if (!staffId) {
+        return res.status(400).json({ error: 'staffId is required.' });
+      }
+
+      const issue = db.get('SELECT * FROM issues WHERE id = ?', [id]);
+      if (!issue) return res.status(404).json({ error: 'Issue not found.' });
+
+      const staff = db.get('SELECT * FROM users WHERE id = ? AND role = ?', [staffId, 'FIELD_STAFF']);
+      if (!staff) return res.status(404).json({ error: 'Field staff member not found.' });
+
+      const prevAssigneeId = issue.assigned_to_user_id;
+      const newStatus = issue.status === 'REPORTED' ? 'ASSIGNED' : issue.status;
+
+      db.run(
+        `UPDATE issues
+         SET assigned_to_user_id = ?,
+             status = ?,
+             progress_notes = COALESCE(?, progress_notes)
+         WHERE id = ?`,
+        [staffId, newStatus, notes || null, id]
+      );
+
+      db.run(
+        `INSERT INTO issue_status_history (id, issue_id, old_status, new_status, changed_by_user_id, notes, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+        [
+          `hist-${id}-${Date.now()}`,
+          id,
+          issue.status,
+          newStatus,
+          adminId,
+          notes || `Issue assigned to ${staff.name} by PDO.`
+        ]
+      );
+
+      // Notify new assignee
+      createNotification({
+        userId: staffId,
+        issueId: id,
+        title: `New Task Assignment (${id})`,
+        message: `PDO has assigned you a ${issue.priority} priority issue: "${issue.title}". Location: ${issue.location_text}. Please action immediately.`,
+        type: 'ASSIGNMENT'
+      });
+
+      // Notify previously assigned staff of reassignment
+      if (prevAssigneeId && prevAssigneeId !== staffId) {
+        createNotification({
+          userId: prevAssigneeId,
+          issueId: id,
+          title: `Issue ${id} Reassigned`,
+          message: `Issue "${issue.title}" has been reassigned to another staff member by the PDO.`,
+          type: 'STATUS_CHANGE'
+        });
+      }
+
+      // Notify citizen of assignment
+      if (issue.reported_by_user_id) {
+        createNotification({
+          userId: issue.reported_by_user_id,
+          issueId: id,
+          title: `GramSeva – Issue ${id} Assigned`,
+          message: `Your issue "${issue.title}" has been assigned to a field staff member for repair. You will be notified once work begins.`,
+          type: 'STATUS_CHANGE'
+        });
+      }
+
+      const updated = db.get('SELECT * FROM issues WHERE id = ?', [id]);
+      res.json(updated);
+    } catch (err) {
+      console.error('assignIssue error:', err);
+      res.status(500).json({ error: 'Failed to assign issue.' });
+    }
+  },
+
   startWork(req, res) {
     try {
       const { id } = req.params;
@@ -269,7 +349,7 @@ const issueController = {
          SET status = 'IN_PROGRESS',
              progress_notes = COALESCE(?, progress_notes)
          WHERE id = ?`,
-        [notes, id]
+        [notes || null, id]
       );
 
       db.run(
@@ -341,7 +421,7 @@ const issueController = {
              after_photo_url = COALESCE(?, after_photo_url),
              resolved_at = datetime('now')
          WHERE id = ?`,
-        [resolutionNotes || 'Field maintenance work completed and verified on site.', afterPhotoUrl, id]
+        [resolutionNotes || 'Field maintenance work completed and verified on site.', afterPhotoUrl || null, id]
       );
 
       db.run(
@@ -355,11 +435,12 @@ const issueController = {
       }
 
       if (issue.reported_by_user_id) {
+        const feedbackFormUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeRrijgsuzn3QB0bv9fbntsJy8m3D46QPVX7pzqr7f4Juugbw/viewform?usp=pp_url&entry.88148858=${encodeURIComponent(id)}`;
         createNotification({
           userId: issue.reported_by_user_id,
           issueId: id,
-          title: `GramSeva – Verification Requested for Issue ${id}`,
-          message: `Field staff has completed work for issue ${id} ("${issue.title}"). Has the issue been satisfactorily resolved? Please verify.`,
+          title: `✅ GramSeva – Issue Fixed! Verify & Give Feedback (${id})`,
+          message: `Your issue "${issue.title}" has been resolved. Please open this issue to verify the fix and submit your feedback. Official survey: ${feedbackFormUrl}`,
           type: 'VERIFICATION_REQUEST'
         });
       }

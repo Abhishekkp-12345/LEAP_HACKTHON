@@ -29,6 +29,7 @@ router.patch('/assets/:id', authenticateToken, requireRole('ADMIN'), assetContro
 router.get('/issues', issueController.getIssues);
 router.get('/issues/:id', issueController.getIssueById);
 router.post('/issues', authenticateToken, issueController.createIssue);
+router.patch('/issues/:id/assign', authenticateToken, requireRole('ADMIN'), issueController.assignIssue);
 router.patch('/issues/:id/start-work', authenticateToken, requireRole(['FIELD_STAFF', 'ADMIN']), issueController.startWork);
 router.post('/issues/:id/progress-note', authenticateToken, issueController.addProgressNote);
 router.patch('/issues/:id/resolve', authenticateToken, requireRole(['FIELD_STAFF', 'ADMIN']), issueController.resolveIssue);

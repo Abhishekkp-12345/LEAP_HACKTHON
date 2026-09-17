@@ -18,6 +18,7 @@ import InspectionTaskRunner from './pages/field/InspectionTaskRunner';
 import WorkUpdateModal from './pages/field/WorkUpdateModal';
 
 import AdminDashboard from './pages/admin/AdminDashboard';
+import IssueManagement from './pages/admin/IssueManagement';
 import AssetRegistry from './pages/admin/AssetRegistry';
 import AssetDetailsModal from './pages/admin/AssetDetailsModal';
 import RecurringAssetsAnalysis from './pages/admin/RecurringAssetsAnalysis';
@@ -219,6 +220,11 @@ export default function App() {
                 {activeTab === 'dashboard' && (
                   <AdminDashboard
                     onNavigate={(tab) => setActiveTab(tab)}
+                    onSelectIssue={(id) => setSelectedIssueId(id)}
+                  />
+                )}
+                {activeTab === 'issue_mgmt' && (
+                  <IssueManagement
                     onSelectIssue={(id) => setSelectedIssueId(id)}
                   />
                 )}

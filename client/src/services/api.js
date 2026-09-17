@@ -113,6 +113,16 @@ export const api = {
     return res.json();
   },
 
+  async assignIssue(id, staffId, notes = '') {
+    const res = await fetch(`${API_BASE}/issues/${id}/assign`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ staffId, notes })
+    });
+    if (!res.ok) throw await res.json();
+    return res.json();
+  },
+
   async startWork(id, notes) {
     const res = await fetch(`${API_BASE}/issues/${id}/start-work`, {
       method: 'PATCH',
