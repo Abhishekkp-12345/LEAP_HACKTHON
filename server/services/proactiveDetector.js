@@ -5,9 +5,25 @@ const { createNotification } = require('./notificationService');
 
 function generateIssueId() {
   const year = new Date().getFullYear();
-  const countRow = db.get('SELECT count(*) as count FROM issues');
-  const nextNum = 1000 + (countRow ? countRow.count + 1 : 1);
-  return `GS-${year}-${nextNum}`;
+  const rows = db.all(`SELECT id FROM issues WHERE id LIKE 'GS-${year}-%'`);
+  let maxNum = 1000;
+  for (const row of rows) {
+    if (row && row.id) {
+      const parts = row.id.split('-');
+      if (parts.length >= 3) {
+        const n = parseInt(parts[2], 10);
+        if (!isNaN(n) && n > maxNum) {
+          maxNum = n;
+        }
+      }
+    }
+  }
+  let candidate = `GS-${year}-${maxNum + 1}`;
+  while (db.get('SELECT id FROM issues WHERE id = ?', [candidate])) {
+    maxNum++;
+    candidate = `GS-${year}-${maxNum + 1}`;
+  }
+  return candidate;
 }
 
 function checkForDuplicate({ assetId, category, wardId }) {
